@@ -1,7 +1,9 @@
 import cv2
 import numpy as np
+import ast
 from time import sleep
 from math import floor
+import argparse
 
 mid_point = 128
 
@@ -43,7 +45,6 @@ def two_dimensional_error_diffusion(img, matrix):
 		error = 0		
 		for row in range(0,rows):
 			current_pixel = img[row, col]
-			# print(str(row) + " " + str(col))
 
 			if(current_pixel < mid_point):
 				error = current_pixel
@@ -60,8 +61,6 @@ def distribute_error(img, x, y, matrix, error):
 	width = len(matrix)
 	mid = width - floor(width / 2)
 	matrix_range = 2
-	# matrix_temp = [[0,0,0],[0,0,0],[0,0,0]]
-	matrix_temp = [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]
 	divider = nested_sum(matrix)
 
 	y_count = 0
@@ -78,19 +77,20 @@ def distribute_error(img, x, y, matrix, error):
 	return img
 
 def nested_sum(L):
-    total = 0
-    for i in L:
-        if isinstance(i, list):
-            total += nested_sum(i)
-        else:
-            total += i
-    return total
+	total = 0
+	for i in L:
+		if isinstance(i, list):
+			total += nested_sum(i)
+		else:
+			total += i
+	return total
 
 def set_to_zero(L):
-    for i in range(0,len(L)):
-        for j in range(0,len(L[i])):
-        	L[i][j] = 0
-    return L
+	list = L
+	for i in range(0,len(list)):
+		for j in range(0,len(list[i])):
+			list[i][j] = 0
+	return list
 
 def img_pixel(img, x, y, offset_x=0, offset_y=0):
 	return img.item(x + offset_y, y + offset_y)
@@ -106,42 +106,60 @@ def img_pixel_adjust(img, x, y, new_value, offset_x=0, offset_y=0):
 		img.itemset((x + offset_x, y + offset_y ), img.item(x + offset_x, y + offset_y) + new_value )
 
 
-img = cv2.imread('cube.jpg')
+parser = argparse.ArgumentParser(description='Dither an image')
+parser.add_argument("-f", help="Image Filepath")
+args = vars(parser.parse_args())
+img = cv2.imread(args['f'])
 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-floyd_steinberg_matrix = [[0,0,0],
-						  [0,0,7],
-						  [3,5,1]]
+floyd_steinberg_matrix =	[[0,0,0],
+							[0,0,7],
+							[3,5,1]]
 
-jarvis_judice_ninke_matrix = [[0,0,0,0,0],
-					  		  [0,0,0,0,0],
-					   		  [0,0,0,7,5],
-					   		  [3,5,7,5,3],
-					   		  [1,3,5,3,1]]
+jarvis_judice_ninke_matrix =	[[0,0,0,0,0],
+								[0,0,0,0,0],
+								[0,0,0,7,5],
+								[3,5,7,5,3],
+								[1,3,5,3,1]]
 
-atkinson_matrix = [[0,0,0,0,0],
-				   [0,0,0,0,0],
-				   [0,0,0,1,1],
-				   [0,1,1,1,0],
-				   [0,0,1,0,10]]
+atkinson_matrix =	[[0,0,0,0,0],
+					[0,0,0,0,0],
+					[0,0,0,1,1],
+					[0,1,1,1,0],
+					[0,0,1,0,10]]
 
+print ("""
+   1. Jarvis Judice Ninke
+   2. Atkinson_matrix
+   3. Custom...
+   """)
 
-img_jjn = two_dimensional_error_diffusion(img, jarvis_judice_ninke_matrix)
-img_atkinson = two_dimensional_error_diffusion(img, atkinson_matrix)
+use_custom = False
 
-rows,cols = img.shape
-for row in range(0,rows):
-	error = 0		
-	for col in range(0,cols):
-		if img[row, col] is not 0 and img[row, col] is not 255:
-			# print("!!")
-			pass
+while True:
+	sel = int(input("Make Selection...\n"));
+	if sel == 1:
+		two_dimensional_error_diffusion(img, jarvis_judice_ninke_matrix)
+		break
+	if sel == 2:
+		two_dimensional_error_diffusion(img, atkinson_matrix)
+		break
+	if sel == 3:
+		use_custom = True
+		break
+
+if use_custom:
+	while True:
+		custom = input("Enter matrix... [[0,0,0],[0,0,0... Dimensions must match\n")
+		custom = ast.literal_eval(custom)
+		two_dimensional_error_diffusion(img, custom)
+		break
+
+cv2.imwrite(args['f'][:-4] + '_output.png', img)
 
 while True:
 
 	cv2.imshow('window', img)
-	cv2.imshow('jjn', img_jjn)
-	cv2.imshow('atkinson', img_atkinson)
 
 	if cv2.waitKey(1) & 0xFF == ord('q'):
 		break
